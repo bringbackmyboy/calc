@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, process};
 use colored::*;
 
 enum Operation {
@@ -17,13 +17,17 @@ fn main() {
 | \__/\| | | || |____| \__/\| |_| || |____| | | |  | |  \ \_/ /| |\ \ 
  \____/\_| |_/\_____/ \____/ \___/ \_____/\_| |_/  \_/   \___/ \_| \_|".bold().green());
     loop {
-        let mut op = String::new();
-        let mut num1 = String::new();
-        let mut num2 = String::new();
-
-        println!("{}", "Please select an operation ('add', 'sub', 'mul', 'div'):".blue());
-        io::stdin().read_line(&mut op).expect("Failed to read line");
-
+        let op = get_input(format!(
+        "Please select an operation ({}, {}, {}, {}) or {} to quit:",
+            "add".green().bold(),
+            "sub".yellow().bold(),
+            "mul".cyan().bold(),
+            "div".magenta().bold(),
+            "q".red().bold()
+        ).as_str());
+        if op.eq_ignore_ascii_case("q") {
+            process::exit(0)
+        }
         let op = match parse_operation(&op) {
             Some(op) => op,
             None => {
@@ -32,10 +36,11 @@ fn main() {
             }
         };
 
-        println!("{}", "Plese type the first number:  ".blue());
-        io::stdin().read_line(&mut num1).expect("Failed to read line");
-        
-        let num1 = match parse_number(num1.trim()) {
+        let num1 = get_input("Please type the first number or 'q' to quit:");
+        if num1.eq_ignore_ascii_case("q") {
+            process::exit(0)
+        }
+        let num1 = match parse_number(&num1) {
             Some(num) => num,
             None => {
                 println!("{}", "Invalid number".bold().red());
@@ -43,10 +48,11 @@ fn main() {
             }
         };
 
-        println!("{}", "Plese type the seccond number:  ".blue());
-        io::stdin().read_line(&mut num2).expect("Failed to read line");
-        
-        let num2 = match parse_number(num2.trim()) {
+        let num2 = get_input("Please type the seccond number or 'q' to quit:");
+        if num2.eq_ignore_ascii_case("q") {
+            process::exit(0)
+        }
+        let num2 = match parse_number(&num2) {
             Some(num) => num,
             None => {
                 println!("{}", "Invalid number".bold().red());
@@ -54,23 +60,58 @@ fn main() {
             }
         };
 
-        let result = compute(op, num1, num2);
-        let result_str = format!("The result is {}", result);
+        let result = match compute(op, num1, num2) {
+            Some(result) => result,
+            None => {
+                println!("{}", "Cannot divide by zero.".bold().red());
+                continue;
+            }
+        };
+        let result_str = format!("The result is {:.3}", result);
         println!("{}", result_str.bright_green().bold().italic());
+
+        if ask_yes_no("Would you like to see the precise answer? [Y/n]:") {
+            println!("{}", format!("The precise result is {:.15}", result).bright_green().bold())
+        }
     }
 }
 
-fn compute(op: Operation, num1: f64, num2: f64) -> f64 {
+fn ask_yes_no(prompt: &str) -> bool {
+    loop {
+        match get_input(prompt).to_lowercase().as_str() {
+            "y" => return true,
+            "n" | "" => return false,
+            _ => {
+                println!("{}", "Please select either 'y' or 'n'".bold().red())
+            }
+        }
+    }
+}
+
+fn get_input(prompt: &str) -> String {
+    let mut input = String::new();
+    println!("{}", prompt.blue());
+    io::stdin().read_line(&mut input).expect("Failed to read line");
+    input.trim().to_string()
+}
+
+fn compute(op: Operation, num1: f64, num2: f64) -> Option<f64> {
     match op {
-        Operation::Addition => num1 + num2,
-        Operation::Subtraction => num1 - num2,
-        Operation::Multiplication => num1 * num2,
-        Operation::Division => num1 / num2
+        Operation::Addition => Some(num1 + num2),
+        Operation::Subtraction => Some(num1 - num2),
+        Operation::Multiplication => Some(num1 * num2),
+        Operation::Division => {
+            if num2 == 0.0 {
+                None
+            } else{
+                Some(num1 / num2)
+            }   
+        }
     }
 }
 
 fn parse_operation(input: &str) -> Option<Operation> {
-    match input.trim().to_lowercase().as_str() {
+    match input {
         "add" => Some(Operation::Addition),
         "sub" => Some(Operation::Subtraction),
         "mul" => Some(Operation::Multiplication),
